@@ -150,20 +150,20 @@ class NotesArchiver
 
   def create_base_row(note_data, filename)
     {
-      'filename' => filename,
-      'color' => note_data['color'] || '',
-      'isTrashed' => note_data['isTrashed'] || false,
-      'isPinned' => note_data['isPinned'] || false,
-      'isArchived' => note_data['isArchived'] || false,
       'title' => note_data['title'] || '',
       'textContent' => note_data['textContent'] || '',
-      'userEditedTimestampUsec' => note_data['userEditedTimestampUsec'] || '',
+      'createdTimestampISO' => convert_timestamp_to_iso(note_data['createdTimestampUsec']),
       'userEditedTimestampISO' => convert_timestamp_to_iso(note_data['userEditedTimestampUsec']),
       'createdTimestampUsec' => note_data['createdTimestampUsec'] || '',
-      'createdTimestampISO' => convert_timestamp_to_iso(note_data['createdTimestampUsec']),
-      'textContentHtml' => note_data['textContentHtml'] || '',
+      'userEditedTimestampUsec' => note_data['userEditedTimestampUsec'] || '',
       'labels' => extract_labels(note_data['labels']),
-      'annotations' => extract_annotations(note_data['annotations'])
+      'color' => note_data['color'] || '',
+      'annotations' => extract_annotations(note_data['annotations']),
+      'textContentHtml' => note_data['textContentHtml'] || '',
+      'filename' => filename,
+      'isPinned' => note_data['isPinned'] || false,
+      'isArchived' => note_data['isArchived'] || false,
+      'isTrashed' => note_data['isTrashed'] || false
     }
   end
 
