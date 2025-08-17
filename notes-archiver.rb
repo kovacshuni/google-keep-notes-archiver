@@ -4,6 +4,7 @@ require 'json'
 require 'csv'
 require 'optparse'
 require 'fileutils'
+require 'time'
 
 class NotesArchiver
   def initialize
@@ -157,11 +158,26 @@ class NotesArchiver
       'title' => note_data['title'] || '',
       'textContent' => note_data['textContent'] || '',
       'userEditedTimestampUsec' => note_data['userEditedTimestampUsec'] || '',
+      'userEditedTimestampISO' => convert_timestamp_to_iso(note_data['userEditedTimestampUsec']),
       'createdTimestampUsec' => note_data['createdTimestampUsec'] || '',
+      'createdTimestampISO' => convert_timestamp_to_iso(note_data['createdTimestampUsec']),
       'textContentHtml' => note_data['textContentHtml'] || '',
       'labels' => extract_labels(note_data['labels']),
       'annotations' => extract_annotations(note_data['annotations'])
     }
+  end
+
+  def convert_timestamp_to_iso(timestamp_usec)
+    return '' unless timestamp_usec && timestamp_usec.to_s.match?(/^\d+$/)
+
+    # Convert microseconds to seconds
+    timestamp_sec = timestamp_usec.to_i / 1_000_000
+
+    # Convert to ISO 8601 format
+    Time.at(timestamp_sec).utc.iso8601
+  rescue => e
+    # Return empty string if conversion fails
+    ''
   end
 
   def extract_annotations(annotations)
