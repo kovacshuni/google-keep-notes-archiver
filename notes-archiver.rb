@@ -9,6 +9,8 @@ class NotesArchiver
   def initialize
     @resources_dir = 'resources'
     @output_file = 'notes_archive.csv'
+    @row_limit = 1000  # Default row limit per file
+    @file_cap = nil    # Default: no cap on number of files
   end
 
   def run
@@ -20,10 +22,16 @@ class NotesArchiver
       return
     end
 
+    # Apply file cap if specified
+    if @file_cap && json_files.length > @file_cap
+      puts "Capping to #{@file_cap} files (out of #{json_files.length} total)"
+      json_files = json_files.first(@file_cap)
+    end
+
     puts "Processing #{json_files.length} JSON file(s)..."
-    csv_data = process_files(json_files)
-    write_csv(csv_data)
-    puts "CSV file created: #{@output_file}"
+    puts "Row limit per file: #{@row_limit}"
+    process_files_with_limit(json_files)
+    puts "CSV files created successfully!"
   end
 
   private
@@ -40,6 +48,14 @@ class NotesArchiver
 
       opts.on("-o", "--output FILENAME", "Output CSV filename (default: notes_archive.csv)") do |output|
         @output_file = output
+      end
+
+      opts.on("-l", "--limit ROWS", Integer, "Row limit per file (default: 1000)") do |limit|
+        @row_limit = limit
+      end
+
+      opts.on("-c", "--cap FILES", Integer, "Maximum number of JSON files to process") do |cap|
+        @file_cap = cap
       end
 
       opts.on("-h", "--help", "Show this help message") do
@@ -65,9 +81,10 @@ class NotesArchiver
     end
   end
 
-  def process_files(json_files)
+  def process_files_with_limit(json_files)
     csv_data = []
-    headers_written = false
+    file_counter = 1
+    row_counter = 0
 
     json_files.each do |file_path|
       begin
@@ -78,12 +95,17 @@ class NotesArchiver
         # Convert note to CSV row(s)
         rows = convert_note_to_csv_rows(note_data, File.basename(file_path))
 
-        csv_data.concat(rows)
+        rows.each do |row|
+          csv_data << row
+          row_counter += 1
 
-        # Write headers only once
-        unless headers_written
-          headers = rows.first.keys
-          headers_written = true
+          # Check if we've reached the row limit
+          if row_counter >= @row_limit
+            write_csv_file(csv_data, file_counter)
+            csv_data = []
+            row_counter = 0
+            file_counter += 1
+          end
         end
 
       rescue JSON::ParserError => e
@@ -93,7 +115,30 @@ class NotesArchiver
       end
     end
 
-    csv_data
+    # Write remaining data to final file
+    if !csv_data.empty?
+      write_csv_file(csv_data, file_counter)
+    end
+  end
+
+  def write_csv_file(csv_data, file_number)
+    return if csv_data.empty?
+
+    # Generate filename with number suffix
+    base_name = @output_file.sub(/\.csv$/, '')
+    filename = file_number == 1 ? "#{base_name}.csv" : "#{base_name}_#{file_number}.csv"
+
+    CSV.open(filename, 'w', encoding: 'UTF-8') do |csv|
+      # Write headers
+      csv << csv_data.first.keys
+
+      # Write data rows
+      csv_data.each do |row|
+        csv << row.values
+      end
+    end
+
+    puts "Created: #{filename} (#{csv_data.length} rows)"
   end
 
   def convert_note_to_csv_rows(note_data, filename)
@@ -146,19 +191,7 @@ class NotesArchiver
     labels.map { |label| label['name'] }.to_json
   end
 
-  def write_csv(csv_data)
-    return if csv_data.empty?
 
-    CSV.open(@output_file, 'w', encoding: 'UTF-8') do |csv|
-      # Write headers
-      csv << csv_data.first.keys
-
-      # Write data rows
-      csv_data.each do |row|
-        csv << row.values
-      end
-    end
-  end
 end
 
 # Run the program

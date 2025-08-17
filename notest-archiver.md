@@ -4,19 +4,24 @@ Notes exported from Google Keep, by Google Takeout, which outputs html and json 
 
 ## How to run:
 ```
-Process all JSON files in resources directory
+# Process all files with 2000 rows per file
+ruby notes-archiver.rb --limit 2000
 
-ruby notes-archiver.rb
+# Test with only 10 files, 5 rows per file
+ruby notes-archiver.rb --cap 10 --limit 5 --output "test.csv"
 
-Process a specific file
+# Process specific file with 100 rows per file
+ruby notes-archiver.rb --file "large_file.json" --limit 100
+
+# Process a specific file
 
 ruby notes-archiver.rb --file "yamaha tenere pictures.json"
 
-Process a specific file with custom output
+# Process a specific file with custom output
 
 ruby notes-archiver.rb --file "Color themes for iTerm2.json" --output "my_output.csv"
 
-Show help
+# Show help
 
 ruby notes-archiver.rb --help
 ```
