@@ -12,6 +12,7 @@ class NotesArchiver
     @output_file = 'notes_archive.csv'
     @row_limit = 1000  # Default row limit per file
     @file_cap = nil    # Default: no cap on number of files
+    @sort_data = false # Default: no sorting
   end
 
   def run
@@ -31,6 +32,7 @@ class NotesArchiver
 
     puts "Processing #{json_files.length} JSON file(s)..."
     puts "Row limit per file: #{@row_limit}"
+    puts "Sorting: #{@sort_data ? 'Yes (by createdTimestampUsec descending)' : 'No'}"
     process_files_with_limit(json_files)
     puts "CSV files created successfully!"
   end
@@ -59,6 +61,10 @@ class NotesArchiver
         @file_cap = cap
       end
 
+      opts.on("-s", "--sort", "Sort data by createdTimestampUsec in descending order") do
+        @sort_data = true
+      end
+
       opts.on("-h", "--help", "Show this help message") do
         puts opts
         exit
@@ -83,7 +89,7 @@ class NotesArchiver
   end
 
   def process_files_with_limit(json_files)
-    csv_data = []
+    all_csv_data = []
     file_counter = 1
     row_counter = 0
 
@@ -97,13 +103,13 @@ class NotesArchiver
         rows = convert_note_to_csv_rows(note_data, File.basename(file_path))
 
         rows.each do |row|
-          csv_data << row
+          all_csv_data << row
           row_counter += 1
 
-          # Check if we've reached the row limit
-          if row_counter >= @row_limit
-            write_csv_file(csv_data, file_counter)
-            csv_data = []
+          # Check if we've reached the row limit (only if not sorting)
+          if !@sort_data && row_counter >= @row_limit
+            write_csv_file(all_csv_data, file_counter)
+            all_csv_data = []
             row_counter = 0
             file_counter += 1
           end
@@ -116,9 +122,22 @@ class NotesArchiver
       end
     end
 
-    # Write remaining data to final file
-    if !csv_data.empty?
-      write_csv_file(csv_data, file_counter)
+    # Sort all data if requested
+    if @sort_data && !all_csv_data.empty?
+      puts "Sorting #{all_csv_data.length} rows by createdTimestampUsec..."
+      all_csv_data.sort_by! { |row| row['createdTimestampUsec'].to_i }.reverse!
+    end
+
+    # Write remaining data to final file(s)
+    if !all_csv_data.empty?
+      if @sort_data
+        # When sorting, split into multiple files based on row limit
+        all_csv_data.each_slice(@row_limit).with_index do |slice, index|
+          write_csv_file(slice, file_counter + index)
+        end
+      else
+        write_csv_file(all_csv_data, file_counter)
+      end
     end
   end
 
@@ -151,7 +170,7 @@ class NotesArchiver
   def create_base_row(note_data, filename)
     {
       'title' => note_data['title'] || '',
-      'textContent' => note_data['textContent'] || '',
+      'textContent' => extract_text_content(note_data),
       'createdTimestampISO' => convert_timestamp_to_iso(note_data['createdTimestampUsec']),
       'userEditedTimestampISO' => convert_timestamp_to_iso(note_data['userEditedTimestampUsec']),
       'createdTimestampUsec' => note_data['createdTimestampUsec'] || '',
@@ -159,12 +178,51 @@ class NotesArchiver
       'labels' => extract_labels(note_data['labels']),
       'color' => note_data['color'] || '',
       'annotations' => extract_annotations(note_data['annotations']),
-      'textContentHtml' => note_data['textContentHtml'] || '',
+      'textContentHtml' => extract_html_content(note_data),
       'filename' => filename,
       'isPinned' => note_data['isPinned'] || false,
       'isArchived' => note_data['isArchived'] || false,
       'isTrashed' => note_data['isTrashed'] || false
     }
+  end
+
+  def extract_text_content(note_data)
+    # Handle list content
+    if note_data['listContent'] && note_data['listContent'].is_a?(Array)
+      return convert_list_to_text(note_data['listContent'])
+    end
+
+    # Handle regular text content
+    note_data['textContent'] || ''
+  end
+
+  def extract_html_content(note_data)
+    # Handle list content
+    if note_data['listContent'] && note_data['listContent'].is_a?(Array)
+      return convert_list_to_html(note_data['listContent'])
+    end
+
+    # Handle regular HTML content
+    note_data['textContentHtml'] || ''
+  end
+
+  def convert_list_to_text(list_content)
+    list_content.map do |item|
+      bullet = item['isChecked'] ? '☑' : '•'
+      "#{bullet} #{item['text']}"
+    end.join("\n")
+  end
+
+  def convert_list_to_html(list_content)
+    html_items = list_content.map do |item|
+      if item['isChecked']
+        "<li style=\"text-decoration: line-through;\">☑ #{item['text']}</li>"
+      else
+        "<li>• #{item['text']}</li>"
+      end
+    end.join("\n")
+
+    "<ul style=\"margin: 0; padding-left: 20px;\">\n#{html_items}\n</ul>"
   end
 
   def convert_timestamp_to_iso(timestamp_usec)

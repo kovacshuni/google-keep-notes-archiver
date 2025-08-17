@@ -21,6 +21,10 @@ ruby notes-archiver.rb --file "yamaha tenere pictures.json"
 
 ruby notes-archiver.rb --file "Color themes for iTerm2.json" --output "my_output.csv"
 
+# Sort by creation timestamp (newest first. Will consume memory.)
+
+ruby notes-archiver.rb --sort
+
 # Show help
 
 ruby notes-archiver.rb --help
@@ -32,5 +36,8 @@ ruby notes-archiver.rb --help
 Usage: ruby notes-archiver.rb [options]
     -f, --file FILENAME              Process specific JSON file from resources directory
     -o, --output FILENAME            Output CSV filename (default: notes_archive.csv)
+    -l, --limit ROWS                 Row limit per file (default: 1000)
+    -c, --cap FILES                  Maximum number of JSON files to process
+    -s, --sort                       Sort data by createdTimestampUsec in descending order
     -h, --help                       Show this help message
 ```
