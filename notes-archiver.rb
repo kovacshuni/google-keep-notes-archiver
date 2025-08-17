@@ -120,17 +120,16 @@ class NotesArchiver
   end
 
   def extract_annotations(annotations)
-    return '' unless annotations && annotations.is_a?(Array)
+    return '[]' unless annotations && annotations.is_a?(Array)
 
     annotations.map do |annotation|
-      parts = []
-      parts << annotation['description'] if annotation['description'] && !annotation['description'].empty?
-      parts << annotation['source'] if annotation['source'] && !annotation['source'].empty?
-      parts << annotation['title'] if annotation['title'] && !annotation['title'].empty?
-      parts << annotation['url'] if annotation['url'] && !annotation['url'].empty?
-
-      parts.join(' | ')
-    end.join('; ')
+      {
+        'description' => annotation['description'] || '',
+        'source' => annotation['source'] || '',
+        'title' => annotation['title'] || '',
+        'url' => annotation['url'] || ''
+      }
+    end.to_json
   end
 
   def convert_annotation_to_row(annotation, index)
@@ -143,8 +142,8 @@ class NotesArchiver
   end
 
   def extract_labels(labels)
-    return '' unless labels && labels.is_a?(Array)
-    labels.map { |label| label['name'] }.join('; ')
+    return '[]' unless labels && labels.is_a?(Array)
+    labels.map { |label| label['name'] }.to_json
   end
 
   def write_csv(csv_data)
